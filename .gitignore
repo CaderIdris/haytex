@@ -1,0 +1,9 @@
+
+.env/
+**/.ipynb_checkpoints/
+**/__pycache__/
+**/*.egg-info/
+**/.~lock.*
+.mypy_cache/
+.tox/
+.coverage
