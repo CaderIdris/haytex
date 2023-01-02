@@ -4,7 +4,7 @@ requires = ["setuptools>=42.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
-addopts = "--cov=haytex --cov-report html --html=report.html --self-contained-html"
+addopts = "--cov=haytex tests/ --cov-report html --html=report.html --self-contained-html"
 testpaths = [
 	"tests",
 ]

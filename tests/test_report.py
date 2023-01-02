@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 import pytest
 
@@ -5,7 +7,7 @@ from haytex.report import Report as Report
 
 
 @pytest.fixture
-def list_of_figs():
+def list_of_ten_figs():
     """
     List of fake paths to figures
     """
@@ -85,20 +87,130 @@ def test_add_all_section_types():
     tests.append(t_lines)
     print(f"Right number of lines: {t_lines}")
     # Are the right number of different sections in there?
-    t_parts = all([f"P{i}" for i in range(1, 3)])
+    t_parts = all([f"\\part{{P{i}}}" in report.report_text
+                   for i in range(1, 3)])
     tests.append(t_parts)
     print(f"Right number of parts: {t_parts}")
-    t_chaps = all([f"C{i}" for i in range(1, 5)])
+    t_chaps = all([f"\\chapter{{C{i}}}" in report.report_text
+                   for i in range(1, 5)])
     tests.append(t_chaps)
     print(f"Right number of chapters: {t_chaps}")
-    t_secs = all([f"S{i}" for i in range(1, 5)])
+    t_secs = all([f"\\section{{S{i}}}" in report.report_text
+                  for i in range(1, 5)])
     tests.append(t_secs)
     print(f"Right number of sections: {t_secs}")
-    t_subsecs = all([f"sS{i}" for i in range(1, 5)])
+    t_subsecs = all([f"\\subsection{{sS{i}}}" in report.report_text
+                     for i in range(1, 5)])
     tests.append(t_subsecs)
     print(f"Right number of subsections: {t_subsecs}")
-    t_subsubsecs = all([f"ssS{i}" for i in range(1, 5)])
+    t_subsubsecs = all([f"\\subsubsection{{ssS{i}}}" in report.report_text
+                        for i in range(1, 5)])
     tests.append(t_subsubsecs)
     print(f"Right number of subsections: {t_subsubsecs}")
 
+    assert all(tests)
+
+
+@pytest.mark.parametrize(
+        "cols,rows,caption,fileformat,ex_blanklines,ex_figs,ex_sfigs,ex_captions,"
+        "ex_clearpages",
+        [
+            (None, None, None, ".png", 0, 1, 10, 0, 0),
+            (None, None, "Test", ".png", 0, 1, 10, 1, 0),
+            (2, 5, "Test", ".png", 4, 1, 10, 1, 0),
+            (2, 3, "Test", ".png", 3, 2, 10, 2, 1),
+            (1, 1, "Test", ".png", 0, 10, 10, 10, 9),
+            (None, None, "Test", ".pgf", 0, 1, 10, 1, 0),
+            (1, 1, "Test", ".pgf", 0, 10, 10, 10, 9),
+            ]
+        )
+def test_multifig(
+        list_of_ten_figs,
+        cols,
+        rows,
+        caption,
+        fileformat,
+        ex_blanklines,
+        ex_figs,
+        ex_sfigs,
+        ex_captions,
+        ex_clearpages,
+        ):
+    """ Tests adding multiple figures to a plot
+
+    Asserts the following:
+        Expected number of blank lines present. Blank lines indicate a new row
+        in the figure
+
+        Expected number of figures present. If more figures are present than
+        rowsplit, the figure is split in to 2
+
+        Expected number of subfigures present. Should always be 10.
+
+        Expected number of images imported
+
+        Expected number of captions present. Should equal number of figures
+        or 0 if no caption given. Captions should be unique (e.q Fig A, Fig B)
+
+        Expected number of clearpages. Clearpage should separate two figures.
+
+        Expected number of centering calls. Every figure should begin with a
+        centering call.
+    """
+
+    figs = [f"{name}{fileformat}" for name in list_of_ten_figs]
+
+    tests = list()
+
+    report = Report()
+    report.add_figure(figs, cols=cols, rows=rows, caption=caption)
+    report_text = report.report_text
+    # Check for blank lines
+    blank_lines = sum([i == "" for i in report_text])
+    t_blank_lines = blank_lines == ex_blanklines
+    tests.append(t_blank_lines)
+    print(f"Right number of blank lines: {t_blank_lines}")
+    # Check number of figs present
+    begin_end_fig_regex = re.compile(r"\\begin\{figure\}|\\end\{figure\}")
+    figs_present = sum([bool(re.match(begin_end_fig_regex, i))
+                        for i in report_text])
+    t_figs_present = figs_present == 2 * ex_figs
+    tests.append(t_figs_present)
+    print(f"Right number of figs: {t_figs_present}")
+    # Check number of subfigs present
+    begin_end_subfig_regex = re.compile(
+            r"\\begin\{subfigure\}|\\end\{subfigure\}"
+            )
+    subfigs_present = sum([bool(re.match(begin_end_subfig_regex, i))
+                           for i in report_text])
+    t_subfigs_present = subfigs_present == 2 * ex_sfigs
+    tests.append(t_subfigs_present)
+    print(f"Right number of subfigs: {t_subfigs_present}")
+    # Check number of pictures imported
+    if fileformat == ".pgf":
+        import_regex = re.compile(r"\\input\{.*\}")
+    else:
+        import_regex = re.compile(r"\\includegraphics\[.*\]\{.*\}")
+    import_present = sum([bool(re.search(import_regex, i))
+                          for i in report_text])
+    t_import_present = import_present == ex_sfigs
+    tests.append(t_import_present)
+    print(f"Right number of imports: {t_import_present}")
+    # Expected number of captions
+    cap_regex = re.compile(r"\\caption\{.*\}")
+    captions_present = [i for i in report_text if re.match(cap_regex, i)]
+    u_caps_present = len(set(captions_present))  # Cast to set to remove dupes
+    t_caps_present = u_caps_present == ex_captions
+    tests.append(t_caps_present)
+    print(f"Right number of captions: {t_caps_present}")
+    # Check for clearpages
+    clear_pages = sum([i == r"\clearpage" for i in report_text])
+    t_clear_pages = clear_pages == ex_clearpages
+    tests.append(t_clear_pages)
+    print(f"Right number of clear pages: {t_clear_pages}")
+    # Check for centering calls
+    centering_calls = sum([i == r"\centering" for i in report_text])
+    t_centering_calls = centering_calls == ex_figs
+    tests.append(t_centering_calls)
+    print(f"Right number of clear pages: {t_centering_calls}")
     assert all(tests)
