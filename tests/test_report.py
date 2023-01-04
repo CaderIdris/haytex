@@ -166,7 +166,7 @@ def test_multifig(
     report.add_figure(figs, cols=cols, rows=rows, caption=caption)
     report_text = report.report_text
     # Check for blank lines
-    blank_lines = sum([i == "" for i in report_text])
+    blank_lines = sum([len(i) == 0 for i in report_text])
     t_blank_lines = blank_lines == ex_blanklines
     tests.append(t_blank_lines)
     print(f"Right number of blank lines: {t_blank_lines}")
