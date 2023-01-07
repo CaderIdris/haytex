@@ -1,3 +1,4 @@
+from io import StringIO
 import re
 
 import pandas as pd
@@ -24,6 +25,25 @@ def list_of_ten_figs():
         "j"
             ]
     return figs
+
+
+@pytest.fixture
+def table_to_test():
+    """
+    Pandas dataframe used to test report add_table function
+    """
+    table_text = """A,B,C,D,E,F,G,H,I,J
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,
+    ,,,,,,,,,"""
+    return pd.read_csv(StringIO(table_text))
 
 
 def test_init():
@@ -111,16 +131,98 @@ def test_add_all_section_types():
     assert all(tests)
 
 
+def test_singlefig():
+    """Tests what happens when a single figure is added in string format
+
+    Asserts the following:
+        Expected number of blank lines present. Blank lines indicate a new row
+        in the figure (0)
+
+        Expected number of figures present. If more figures are present than
+        rowsplit, the figure is split in to 2 (1)
+
+        Expected number of subfigures present. Should always be 10. (1)
+
+        Expected number of images imported (1)
+
+        Expected number of captions present. Should equal number of figures
+        or 0 if no caption given. Captions should be unique (e.q Fig A, Fig B)
+        (1)
+
+        Expected number of clearpages. Clearpage should separate two figures.
+        (0)
+
+        Expected number of centering calls. Every figure should begin with a
+        centering call.
+        (1)
+    """
+
+    tests = list()
+
+    report = Report()
+    report.add_figure("a.pgf", caption="Test")
+    report_text = report.report_text
+    # Check that there are no blank lines
+    blank_lines = sum([len(i) == 0 for i in report_text])
+    t_blank_lines = blank_lines == 0
+    tests.append(t_blank_lines)
+    print(f"Right number of blank lines: {t_blank_lines}")
+    # Check number of figs present
+    begin_end_fig_regex = re.compile(r"\\begin\{figure\}|\\end\{figure\}")
+    figs_present = sum([bool(re.match(begin_end_fig_regex, i))
+                        for i in report_text])
+    t_figs_present = figs_present == 2
+    tests.append(t_figs_present)
+    print(f"Right number of figs: {t_figs_present}")
+    # Check number of subfigs present
+    begin_end_subfig_regex = re.compile(
+            r"\\begin\{subfigure\}|\\end\{subfigure\}"
+            )
+    subfigs_present = sum([bool(re.match(begin_end_subfig_regex, i))
+                           for i in report_text])
+    t_subfigs_present = subfigs_present == 2
+    tests.append(t_subfigs_present)
+    print(f"Right number of subfigs: {t_subfigs_present}")
+    # Check number of pictures imported
+    import_regex = re.compile(r"\\input\{.*\}")
+    import_present = sum([bool(re.search(import_regex, i))
+                          for i in report_text])
+    t_import_present = import_present == 1
+    tests.append(t_import_present)
+    print(f"Right number of imports: {t_import_present}")
+    # Expected number of captions
+    cap_regex = re.compile(r"\\caption\{Test\}")
+    captions_present = [i for i in report_text if re.match(cap_regex, i)]
+    u_caps_present = len(set(captions_present))  # Cast to set to remove dupes
+    t_caps_present = u_caps_present == 1
+    tests.append(t_caps_present)
+    print(f"Right number of captions: {t_caps_present}")
+    # Check for clearpages
+    clear_pages = sum([i == r"\clearpage" for i in report_text])
+    t_clear_pages = clear_pages == 0
+    tests.append(t_clear_pages)
+    print(f"Right number of clear pages: {t_clear_pages}")
+    # Check for centering calls
+    centering_calls = sum([i == r"\centering" for i in report_text])
+    t_centering_calls = centering_calls == 1
+    tests.append(t_centering_calls)
+    print(f"Right number of clear pages: {t_centering_calls}")
+    assert all(tests)
+
+
 @pytest.mark.parametrize(
-        "cols,rows,caption,fileformat,ex_blanklines,ex_figs,ex_sfigs,ex_captions,"
-        "ex_clearpages",
+        "cols,rows,caption,fileformat,"
+        "ex_blanklines,ex_figs,ex_sfigs,ex_captions,ex_clearpages",
         [
             (None, None, None, ".png", 0, 1, 10, 0, 0),
             (None, None, "Test", ".png", 0, 1, 10, 1, 0),
             (2, 5, "Test", ".png", 4, 1, 10, 1, 0),
             (2, 3, "Test", ".png", 3, 2, 10, 2, 1),
             (1, 1, "Test", ".png", 0, 10, 10, 10, 9),
+            (None, None, None, ".pgf", 0, 1, 10, 0, 0),
             (None, None, "Test", ".pgf", 0, 1, 10, 1, 0),
+            (2, 5, "Test", ".pgf", 4, 1, 10, 1, 0),
+            (2, 3, "Test", ".pgf", 3, 2, 10, 2, 1),
             (1, 1, "Test", ".pgf", 0, 10, 10, 10, 9),
             ]
         )
@@ -213,4 +315,87 @@ def test_multifig(
     t_centering_calls = centering_calls == ex_figs
     tests.append(t_centering_calls)
     print(f"Right number of clear pages: {t_centering_calls}")
+    assert all(tests)
+
+
+@pytest.mark.parametrize(
+        "cols,rows,caption,"
+        "ex_blanklines,ex_tables,ex_tabulars,ex_captions",
+        [
+            (None, None, None, 0, 1, 1, 0),
+            (None, None, "Test", 0, 1, 1, 1),
+            (2, 5, "Test", 9, 10, 10, 10),
+            (2, 3, "Test", 19, 20, 20, 20),
+            (1, 1, "Test", 99, 100, 100, 100),
+            ]
+        )
+def test_table(
+        table_to_test,
+        cols, rows,
+        caption,
+        ex_blanklines,
+        ex_tables,
+        ex_tabulars,
+        ex_captions
+        ):
+    """ Tests adding multiple figures to a plot
+
+    Asserts the following:
+        Expected number of blank lines present. Blank lines indicate a new
+        table
+
+        Expected number of tables present. If more rows or cols are present
+        than row or col arg, the table is split
+
+        Expected number of tabulars present
+
+        Expected number of captions present. Should equal number of tables
+        or 0 if no caption given. Captions should be unique
+        (e.q Table A, Table B)
+
+        Expected number of centering calls. Every figure should begin with a
+        centering call.
+    """
+
+    tests = list()
+
+    report = Report()
+    report.add_table(table_to_test, cols=cols, rows=rows, caption=caption)
+    report_text = report.report_text
+    # Check for blank lines
+    blank_lines = sum([len(i) == 0 for i in report_text])
+    t_blank_lines = blank_lines == ex_blanklines
+    tests.append(t_blank_lines)
+    print(f"Right number of blank lines: {t_blank_lines}")
+    # Check number of tables present
+    begin_end_table_regex = re.compile(r"\\begin\{table\}|\\end\{table\}")
+    tables_present = sum([bool(re.match(begin_end_table_regex, i))
+                          for i in report_text])
+    t_tables_present = tables_present == 2 * ex_tables
+    tests.append(t_tables_present)
+    print(f"Right number of tables: {t_tables_present}")
+    # Check number of tabulars present
+    begin_end_tabular_regex = re.compile(
+            r"\\begin\{tabular\}|\\end\{tabular\}"
+            )
+    tabulars_present = sum([bool(re.match(begin_end_tabular_regex, i))
+                           for i in report_text])
+    t_tabulars_present = tabulars_present == 2 * ex_tabulars
+    tests.append(t_tabulars_present)
+    print(f"Right number of tabulars: {t_tabulars_present}")
+    # Expected number of captions
+    if ex_captions != 1:
+        cap_regex = re.compile(r"\\caption\{.*\}")
+    else:
+        cap_regex = re.compile(r"\\caption\{Test\}")
+    captions_present = [i for i in report_text if re.match(cap_regex, i)]
+    u_caps_present = len(set(captions_present))  # Cast to set to remove dupes
+    t_caps_present = u_caps_present == ex_captions
+    tests.append(t_caps_present)
+    print(f"Right number of captions: {t_caps_present}")
+    # Check for centering calls
+    centering_calls = sum([i == r"\centering" for i in report_text])
+    t_centering_calls = centering_calls == ex_tables
+    tests.append(t_centering_calls)
+    print(f"Right number of centering calls: {t_centering_calls}")
     assert all(tests)

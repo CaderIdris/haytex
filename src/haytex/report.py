@@ -1,6 +1,6 @@
 import re
 import shutil
-from typing import Match, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -103,10 +103,71 @@ class Report:
                 if row_index != len(fig_graphs):
                     self.report_text.append("")  # Blank line for newline
             if caption is not None:
-                self.report_text.append(f"\\caption{{{caption} [{fig_index}]}}")
+                if len(fig_list) > 1:
+                    self.report_text.append(
+                            f"\\caption{{{caption} [{fig_index}]}}"
+                            )
+                else:
+                    self.report_text.append(
+                            f"\\caption{{{caption}}}"
+                            )
             self.report_text.append(r"\end{figure}")
             if len(fig_list) != fig_index:
                 self.report_text.append(r"\clearpage")
+        print(self.report_text)
+
+    def add_table(self,
+                  table: pd.DataFrame,
+                  cols: Optional[int] = None,
+                  rows: Optional[int] = None,
+                  caption: Optional[str] = None
+                  ):
+        """
+        """
+        # Preparation
+        if cols is None:
+            cols = int(table.shape[1])
+        if rows is None:
+            rows = int(table.shape[0])
+        table_list = [table]
+        # Split by columns
+        if table.shape[1] > cols:
+            col_numbers = int(np.ceil(table.shape[1] / cols))
+            table_list = list()
+            for col in range(col_numbers):
+                if ((col + 1) * cols) < table.shape[1]:
+                    table_list.append(table.iloc[:, (col*cols):((col+1)*cols)])
+                else:
+                    table_list.append(table.iloc[:, (col*cols):])
+        # Split by rows
+        if table.shape[0] > rows:
+            temp_list = list()
+            row_numbers = int(np.ceil(table.shape[0] / rows))
+            for tab in table_list:
+                for row in range(row_numbers):
+                    if ((row + 1) * rows) < table.shape[0]:
+                        temp_list.append(tab.iloc[(row*rows):((row+1)*rows), :])
+                    else:
+                        temp_list.append(tab.iloc[(row*rows):, :])
+                table_list = temp_list
+        for index, tabular in enumerate(table_list, start=1):
+            self.report_text.extend([
+                r"\begin{table}[H]",
+                r"\centering",
+                *tabular.style.to_latex().split("\n")[:-1]
+                ])
+            if caption is not None:
+                if len(table_list) > 1:
+                    self.report_text.append(
+                            f"\\caption{{{caption} [{index}]}}"
+                            )
+                else:
+                    self.report_text.append(
+                            f"\\caption{{{caption}}}"
+                            )
+            self.report_text.append(r"\end{table}")
+            if index != len(table_list):
+                self.report_text.append("")
         print(self.report_text)
 
     def save_tex(self, path):
