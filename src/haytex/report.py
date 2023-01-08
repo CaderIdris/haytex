@@ -244,7 +244,6 @@ class Report:
 
         file_format_regex = re.compile(r".*\.([\w]*)$")
         fig_sizing = np.floor(10 / cols) / 10
-        print(fig_list)
         for fig_index, fig_graphs in enumerate(fig_list, start=1):
             self.report_text.extend([
                 r"\begin{figure}[H]",
@@ -283,7 +282,6 @@ class Report:
             self.report_text.append(r"\end{figure}")
             if len(fig_list) != fig_index:
                 self.report_text.append(r"\clearpage")
-        print(self.report_text)
 
     def add_table(self,
                   table: pd.DataFrame,
@@ -360,7 +358,6 @@ class Report:
             self.report_text.append(r"\end{table}")
             if index != len(table_list):
                 self.report_text.append("")
-        print(self.report_text)
 
     def save_tex(self, path: str, style_file: Optional[str] = None):
         """ Saves the tex file and an associated style file
