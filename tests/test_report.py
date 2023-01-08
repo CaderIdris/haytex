@@ -4,7 +4,7 @@ import re
 import pandas as pd
 import pytest
 
-from haytex.report import Report as Report
+from haytex import Report as Report
 
 
 @pytest.fixture

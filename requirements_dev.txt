@@ -7,7 +7,6 @@ distlib==0.3.6
 exceptiongroup==1.1.0
 filelock==3.9.0
 flake8==6.0.0
--e git+https://github.com/CaderIdris/haytex.git@657518bf9a7d51f59480cdbf812e7d2f3d1462ac#egg=haytex
 iniconfig==1.1.1
 Jinja2==3.1.2
 MarkupSafe==2.1.1
