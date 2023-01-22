@@ -4,6 +4,8 @@
 
 **Contact**: [CaderIdrisGH@outlook.com](mailto:CaderIdrisGH@outlook.com)
 
+![Tests](https://github.com/CaderIdris/haytex/actions/workflows/tests.yml/badge.svg)
+ 
 ---
 
 ## Table of Contents
